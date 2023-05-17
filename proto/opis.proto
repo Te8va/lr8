@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package api;
+
+option go_package = "./api";
+
+service Auth {
+    rpc CheckAuth(AuthRequest) returns (AuthResponse) {}
+}
+
+message AuthRequest {
+    string username = 1;
+}
+
+message AuthResponse {
+    bool exists = 1;
+}

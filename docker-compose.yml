@@ -1,0 +1,99 @@
+version: '3.8'
+services:
+  grpcserver:
+    build: ./server/
+    environment:
+      - GRPC_PORT=${GRPC_PORT}
+  grpcclient:
+      build: ./client/
+      environment:
+        - API=${API}
+        - PORT=${INT_PORT}
+        - GRPC_PORT=${GRPC_PORT}
+        - REDIS_PORT=${REDIS_PORT}
+        - REDIS_SERVER=${REDIS_SERVER}
+      ports:
+        - ${PORT}:${INT_PORT}
+
+  redis-1:
+    image: redis
+    container_name: redis-1
+    ports:
+      - ${REDIS_PORT}
+    volumes:
+      - data_1:/data
+    command: [ "redis-server", "--port ${REDIS_PORT}" ]
+    networks:
+      - redis-network
+
+  redis-2:
+    image: redis
+    container_name: redis-2
+    ports:
+      - ${REDIS_PORT}
+    volumes:
+      - data_2:/data
+    command: [ "redis-server", "--port ${REDIS_PORT}" ]
+    networks:
+      - redis-network
+
+  redis-3:
+    image: redis
+    container_name: redis-3
+    ports:
+      - ${REDIS_PORT}
+    volumes:
+      - data_3:/data
+    command: [ "redis-server", "--port ${REDIS_PORT}" , "--slaveof", "redis-1", "${REDIS_PORT}" ]
+    networks:
+      - redis-network
+  
+  redis-4:
+    image: redis
+    container_name: redis-4
+    ports:
+      - ${REDIS_PORT}
+    volumes:
+      - data_4:/data
+    command: [ "redis-server", "--port ${REDIS_PORT}" , "--slaveof", "redis-2", "${REDIS_PORT}" ]
+    networks:
+      - redis-network
+
+  prometheus:
+    container_name: prometheus
+    hostname: prometheus
+    image: prom/prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - 9090:9090    
+
+  twem-proxy:
+    image: tarantool/twemproxy
+    command:
+      - --verbose=11
+    volumes:
+      - ./nutcracker.yml:/conf/nutcracker.yml
+    depends_on:
+      - redis-1
+      - redis-2
+      - redis-3
+      - redis-4
+    ports:
+      - ${REDIS_PORT}:${REDIS_PORT}
+    networks:
+      - redis-network
+      - default
+networks:
+  default:
+    driver: bridge
+  redis-network:
+    driver: bridge
+
+volumes:
+  data_1: {}
+  data_2: {}
+  data_3: {}
+  data_4: {}
